@@ -1,4 +1,4 @@
-# Task 2 — Users, Projects & Tasks REST API
+# Users, Projects & Tasks REST API
 
 Internship Task 2 (Innovation Hacks Full Stack Development Internship): a REST API for managing
 Users, Projects, and Tasks with JWT authentication and ownership-based permissions.
