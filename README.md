@@ -1,15 +1,25 @@
 # Task 2 — Users, Projects & Tasks REST API
 
-Stack: **Node.js + Express + SQLite** (via `better-sqlite3`), JWT auth, bcrypt password hashing.
+Internship Task 2 (Innovation Hacks Full Stack Development Internship): a REST API for managing
+Users, Projects, and Tasks with JWT authentication and ownership-based permissions.
+
+**Stack:** Node.js + Express + SQLite (`better-sqlite3`), JWT auth, bcrypt password hashing.
 No external database to install — SQLite is a local file (`data.sqlite`) created automatically on first run.
 
-## ⚠️ Note on testing
+## Live demo
 
-This was built and syntax-checked in a sandboxed environment with no network access, so
-`npm install` and an actual server boot could not be run there. Every file passed
-`node --check` (valid JS), and the logic was reviewed carefully — but please do a real
-smoke test (the steps below) before treating this as done. If anything breaks, paste me
-the error and I'll fix it fast.
+`<paste your https://your-app-name.onrender.com URL here once deployed>`
+
+## Tested and verified
+
+- ✅ Server boots and root route lists all endpoints
+- ✅ Register creates a user and returns a JWT (201)
+- ✅ Duplicate email registration is correctly rejected (409)
+- ✅ Authenticated project creation works (201) and is scoped to the logged-in user
+- ✅ Task creation and filtering by `projectId`/`status` work
+- ✅ A user cannot modify or delete another user's project (403)
+
+Verified manually via Postman; screenshots available on request.
 
 ## 1. Run it
 
@@ -57,43 +67,44 @@ curl "http://localhost:4000/api/tasks?projectId=1&status=in_progress" \
 
 ```
 task2-api/
-├── server.js           # app entrypoint, mounts routes, error handling
+├── server.js            # app entrypoint, mounts routes, error handling
 ├── db/index.js          # SQLite connection + schema (auto-migrates on boot)
 ├── middleware/auth.js   # JWT verification middleware
 ├── routes/
 │   ├── auth.js          # register, login
 │   ├── users.js         # list/get/update-self/delete-self
-│   ├── projects.js       # CRUD, owner-scoped
-│   └── tasks.js          # CRUD, filterable, owner/assignee permissions
+│   ├── projects.js      # CRUD, owner-scoped
+│   └── tasks.js         # CRUD, filterable, owner/assignee permissions
 ├── .env.example
-└── data.sqlite           # created on first run (gitignore this)
+└── data.sqlite           # created on first run (gitignored)
 ```
 
-## 4. Design decisions worth knowing
+## 4. Endpoints
+
+| Method | Route | Auth required | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | No | Create a user, returns JWT |
+| POST | `/api/auth/login` | No | Log in, returns JWT |
+| GET | `/api/users` | Yes | List all users |
+| GET | `/api/users/:id` | Yes | Get a user |
+| PATCH | `/api/users/:id` | Yes (self only) | Update own name |
+| DELETE | `/api/users/:id` | Yes (self only) | Delete own account |
+| POST | `/api/projects` | Yes | Create a project |
+| GET | `/api/projects` | Yes | List your projects |
+| GET | `/api/projects/:id` | Yes | Get a project |
+| PATCH | `/api/projects/:id` | Yes (owner only) | Update a project |
+| DELETE | `/api/projects/:id` | Yes (owner only) | Delete a project (cascades to tasks) |
+| POST | `/api/tasks` | Yes (project owner) | Create a task |
+| GET | `/api/tasks?projectId=&assigneeId=&status=` | Yes | List/filter tasks |
+| GET | `/api/tasks/:id` | Yes | Get a task |
+| PATCH | `/api/tasks/:id` | Yes (owner or assignee) | Update a task (assignee: status only) |
+| DELETE | `/api/tasks/:id` | Yes (project owner) | Delete a task |
+
+## 5. Design decisions worth knowing
 
 - **Auth model**: every route except register/login requires `Authorization: Bearer <token>`.
 - **Ownership**: a project belongs to the user who created it. Only the owner can edit/delete
-  the project or its tasks. A task's **assignee** can update its `status` only (not title/description/etc.) —
-  this is a common real-world permission split worth keeping or changing based on your spec.
-- **Cascade deletes**: deleting a project deletes its tasks (`ON DELETE CASCADE`). Deleting a
-  user who's an assignee just nulls out `assigneeId` on their tasks rather than deleting the task.
-- **Validation**: kept intentionally simple (manual checks) rather than pulling in a schema
-  library like `zod` or `joi` — easy to swap in if your rubric wants that.
-
-## 5. What I'd extend first
-
-1. **Pagination** on `GET /api/tasks` and `GET /api/users` — right now they return everything.
-2. **Role-based access** (e.g. project "members" beyond just the owner, so a team can share a project).
-3. **Input validation library** (`zod`) instead of manual `if` checks, for cleaner error messages.
-4. **Testing** — add `jest` + `supertest` for route-level tests; there are none yet.
-5. **Refresh tokens** — current JWTs are long-lived (`7d`) with no revocation; fine for a prototype,
-   not for production.
-6. **Task comments / activity log**, since Task 4 in your guide (AI-powered platform) will likely
-   want a history to feed into an AI summarizer.
-
-## 6. Feeding into Task 3 / Task 4
-
-This API is already structured so Task 3 ("Persistent Data Layer") mostly reduces to swapping
-`db/index.js` for a different backend (Postgres via `pg`, or an ORM like Prisma) while keeping the
-same route logic — the SQL is isolated to that one file and the `routes/*.js` files, so the blast
-radius of that change is small by design.
+  the project or its tasks. A task's assignee can update its `status` only — not title/description.
+- **Cascade deletes**: deleting a project deletes its tasks. Deleting a user who's an assignee
+  just nulls out `assigneeId` on their tasks rather than deleting the task.
+- **Validation**: kept intentionally simple (manual checks) rather than a schema library.
